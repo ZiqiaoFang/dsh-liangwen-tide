@@ -1,0 +1,13 @@
+# 依赖与构建产物
+node_modules/
+*.tgz
+.pack/
+.verify/
+
+# 本地验证用的临时环境
+.tmp-dsh-home/
+.npm-cache/
+
+# 系统与编辑器
+.DS_Store
+*.swp

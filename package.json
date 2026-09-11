@@ -1,0 +1,88 @@
+{
+  "name": "dsh-liangwen-tide",
+  "version": "1.2.0",
+  "description": "DeepSeek API 峰谷指示器 + 当日已用金额：峰时显示「梁文峰」，谷时显示「梁文谷」，策略与价目表自动跟随官方定价页。A peak/off-peak tide + today-cost indicator for the DeepSeek Harness Web GUI.",
+  "author": "ZF",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "tools",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/policy.test.mjs && node test/pricing.test.mjs && node test/usage.test.mjs && node test/tide.test.mjs && node test/host.test.mjs",
+    "test:live": "node test/live-check.mjs",
+    "check": "node --check lib/index.js && node --check lib/policy.js && node --check lib/pricing.js && node --check lib/usage.js && node --check lib/client.js && node --check tools/install.mjs"
+  },
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "client-plugin",
+    "peak",
+    "off-peak",
+    "tide",
+    "cost",
+    "usage",
+    "pricing"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dshhub": {
+    "schemaVersion": 1,
+    "displayName": "dsh-liangwen-tide",
+    "summary": "DeepSeek API 峰谷指示器 + 当日已用金额：峰时显示「梁文峰」、谷时「梁文谷」，峰谷时段与价目表自动跟随官方定价页。",
+    "categories": [
+      "费用",
+      "Web UI",
+      "观测"
+    ],
+    "surfaces": [
+      "host",
+      "web"
+    ],
+    "capabilities": {
+      "provides": [
+        "ui:conversation.session.header.utilities",
+        "ui:sidebar.footer.action",
+        "http:/liangwen-tide/policy",
+        "http:/liangwen-tide/usage"
+      ],
+      "reads": [
+        "session:events",
+        "sessionQuery:listSessions",
+        "sessionQuery:readSession"
+      ],
+      "network": [
+        "api-docs.deepseek.com"
+      ]
+    },
+    "compatibility": {
+      "dsh": ">=0.1.5-rc.1",
+      "node": ">=20"
+    }
+  }
+}

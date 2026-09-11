@@ -1,0 +1,25 @@
+# dsh-liangwen-tide bundle patch —— 在 web profile 上插入一行宿主插件行。
+#
+# 该行只做两件事：
+#   1. 给 Loader 一个宿主侧条目（lib/index.js：抓官方定价页、解析峰谷策略、
+#      挂只读路由 GET /liangwen-tide/policy）；
+#   2. 让 client-modules 扫描到这个包：package.json 声明了 dsh.client，
+#      于是 lib/client.js 被编进 window.__DSH_BOOT__ 的模块图。
+#
+# 行名从 profile 自己的 node_modules 解析（`dsh plugin --profile web add`
+# 安装的位置，或 tools/install.mjs 手工软链的位置）。
+#
+# 想改自动更新的行为，在 profile 自己的 cordis.patch.yml 里按 id 覆写本行
+# （profile 层在 bundle 层之后应用，所以能覆盖）：
+#
+#   - id: liangwen-tide
+#     config:
+#       autoUpdate: false      # 关掉抓取，恒用内置策略
+#       refreshHours: 12       # 抓取间隔（默认 6，最小 0.25）
+#       timeoutMs: 15000       # 单次抓取超时（默认 10000）
+#       urls:                  # 自定义文档地址（默认官方定价页中英文两版）
+#         en: https://api-docs.deepseek.com/quick_start/pricing
+#         zh: https://api-docs.deepseek.com/zh-cn/quick_start/pricing
+- insert:
+    - id: liangwen-tide
+      name: dsh-liangwen-tide
