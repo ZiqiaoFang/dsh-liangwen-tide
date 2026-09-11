@@ -211,6 +211,7 @@ dsh-liangwen-tide
     ├── pricing.test.mjs  # 价目表与计费自检（真实表格 + 互斥 token 约定 + 坏数据）
     ├── usage.test.mjs    # 账本自检（定档/日归档/替换/重试/补历史/上限/失败）
     ├── tide.test.mjs     # 浏览器半自检（判定/文案/注册/策略与用量采纳与拒绝/缓存）
+    ├── pill.test.mjs     # 胶囊显示自检（锁定时钟：逐档/逐边界/一天逐分钟核对）
     ├── host.test.mjs     # 宿主半自检（本地 stub 文档站：正常/故障/关停/节流/用量/降级）
     └── live-check.mjs    # 联网自检：真去抓官方页跑一遍完整解析链路
 ```
@@ -220,7 +221,7 @@ dsh-liangwen-tide
 ## 自检
 
 ```sh
-npm test            # 离线全套（policy + pricing + usage + client + host，共 325 项）
+npm test            # 离线全套（policy + pricing + usage + client + pill + host，共 385 项）
 npm run test:live   # 联网跑一次官方页面，顺便校验内置兜底（时段与价格）是否过期
 ```
 
@@ -235,6 +236,7 @@ npm run test:live   # 联网跑一次官方页面，顺便校验内置兜底（�
   可能与实际扣费有差异（提示气泡里会标出「没匹配到价格」的调用）。
 - 账本只在内存：重启 dsh 后靠补历史重建。补历史覆盖「活着的会话 + 近 36 小时内创建的会话」，
   更早创建、今天又被继续使用的会话可能漏算（提示气泡会写补历史的状态）。
+- 档位显示依赖浏览器时钟（按 UTC 判定，与系统时区无关）；时钟明显不准会让显示跟着不准。
 
 ---
 
