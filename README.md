@@ -118,7 +118,13 @@ node tools/install.mjs --uninstall
 > 宿主半（抓取 + 路由）在 `dsh web` 进程启动时装载，改完宿主半要重启一次 `dsh web`；
 > 只改浏览器半刷新页面即可。重启前浏览器半会走「内置兜底 / 本机缓存」，不会报错。
 
-若机器上装了 pnpm，也可以直接用官方命令：
+若机器上装了 pnpm，也可以直接用官方命令（从 GitHub 装）：
+
+```sh
+dsh plugin --profile web add github:ZiqiaoFang/dsh-liangwen-tide
+```
+
+本地目录：
 
 ```sh
 dsh plugin --profile web add link:./dsh-liangwen-tide    # 相对路径按「你执行命令的目录」解析
@@ -147,8 +153,9 @@ dsh-liangwen-tide-1.2.0.tgz
 
 1. **npm 包**：你 `npm publish`（包名 `dsh-liangwen-tide`）→ 对方
    `dsh plugin --profile web add dsh-liangwen-tide`。需要你有 npm 账号，对方有 pnpm + 网络。
-2. **Git 仓库**：把目录推到 GitHub → 对方
-   `dsh plugin --profile web add github:<你>/<仓库>`。本包没有 `prepare` 构建脚本，所以不需要 pnpm 的 allowBuilds。
+2. **Git 仓库**：本包已开源在 <https://github.com/ZiqiaoFang/dsh-liangwen-tide> → 对方
+   `dsh plugin --profile web add github:ZiqiaoFang/dsh-liangwen-tide`。
+   本包没有 `prepare` 构建脚本，所以不需要 pnpm 的 allowBuilds。
 3. **压缩包**：`npm pack` 得到 tgz，直接发给对方（微信/邮件都行）→ 对方
    `dsh plugin --profile web add ./dsh-liangwen-tide-1.2.0.tgz`。
 4. **直接拷目录**（最省事，对方不需要 pnpm）：把整个目录给对方 → 对方在该目录里跑
@@ -231,5 +238,5 @@ npm run test:live   # 联网跑一次官方页面，顺便校验内置兜底（�
 
 ---
 
-MIT © 2026 ZF
+仓库：<https://github.com/ZiqiaoFang/dsh-liangwen-tide> · MIT © 2026 ZF
 
