@@ -163,6 +163,40 @@ const route = (seq, time, model) => ({ type: 'request/context', seq, time, data:
   assert.equal(tokens.miss, 5000 + 10 + 77 + 1, '缺失时回落到流内 usage；有 data.usage 时以它为准')
 }
 
+// ── 事件时间视界与兜底模型 ─────────────────────────────────────────────────
+
+{
+  const ledger = newLedger()
+  // 十几天前的旧事件：不计数，但水位线要推进（后面的事件不能因此被当成"回放"）
+  const ancient = utc(2026, 9, 1, 2, 0)
+  assert.equal(ledger.ingest('s1', message(1, ancient, { inputTokens: 1_000_000 })), false, '早于保留窗口的事件不计数')
+  assert.equal(ledger.report('2026-09-01', CNY).total.calls, 0)
+  assert.equal(ledger.report('2026-09-11', CNY).total.calls, 0)
+  // 水位线已到 1：紧接着的旧事件（seq 1）不该再被吃
+  assert.equal(ledger.ingest('s1', message(1, utc(2026, 9, 11, 2, 0), { inputTokens: 1_000_000 })), false, '水位线已推进')
+  assert.equal(ledger.ingest('s1', message(2, utc(2026, 9, 11, 2, 0), { inputTokens: 1_000_000 })), true)
+  assert.equal(ledger.report('2026-09-11', CNY).total.calls, 1)
+}
+
+{
+  const ledger = newLedger()
+  // 插件是会话中途才加载的：日志里没有 request/context，靠兜底模型定价
+  const events = [
+    message(1, utc(2026, 9, 11, 2, 0), { inputTokens: 1_000_000 }),
+    message(2, utc(2026, 9, 11, 5, 0), { outputTokens: 1_000_000 }),
+  ]
+  assert.equal(ledger.ingestAll('s1', events, 'deepseek-v4-flash'), 2)
+  const report = ledger.report('2026-09-11', CNY)
+  assert.equal(report.unpriced.calls, 0, '有兜底模型就不该出现"未匹配价格"')
+  assert.deepEqual(report.models.map((entry) => entry.model), ['deepseek-v4-flash'])
+  assert.ok(report.total.cost > 0, '应当算出金额')
+
+  // 没有兜底模型时，仍然如实标"未匹配"，不瞎算
+  const blind = newLedger()
+  blind.ingestAll('s2', [message(1, utc(2026, 9, 11, 2, 0), { inputTokens: 1_000_000 })])
+  assert.equal(blind.report('2026-09-11', CNY).unpriced.calls, 1)
+}
+
 // ── reset：换档位要能清干净重来 ────────────────────────────────────────────
 
 {
@@ -216,15 +250,15 @@ function makeSources({ stored = [], live = [], failRead = [], listError = null }
   })
   const report = await backfillLedger(ledger, sources, { sinceMs: utc(2026, 9, 10) })
   assert.equal(report.state, 'done')
-  assert.equal(report.sessions, 2, '活着的 + 今天创建的')
-  assert.equal(report.skipped, 1, '8 月的老会话跳过（超出 sinceMs）')
-  assert.deepEqual(read, ['today-1'], '活着的会话直接读内存日志，只有持久化会话才走 readSession')
-  assert.equal(ledger.report('2026-09-11', CNY).total.calls, 2)
-  assert.equal(ledger.scannedEventCount(), 4, '两个会话各折叠 2 个事件')
-
-  // 补完历史后，实时再来一条只加一次
-  assert.equal(ledger.ingest('live-1', message(2, utc(2026, 9, 11, 5, 0), { outputTokens: 1_000_000 })), true)
+  assert.equal(report.sessions, 3, '老会话也要读 —— 长驻会话几天前创建、今天还在用，按创建时间过滤会让今日花费凭空少一截')
+  assert.equal(report.skipped, 0)
+  assert.deepEqual(read, ['old-1', 'today-1'], '活着的会话直接读内存日志，其余走 readSession')
   assert.equal(ledger.report('2026-09-11', CNY).total.calls, 3)
+  assert.equal(ledger.scannedEventCount(), 6, '三个会话各折叠 2 个事件')
+
+  // 补完历史后，实时再来一条只加一次（前面已折叠 3 次调用）
+  assert.equal(ledger.ingest('live-1', message(2, utc(2026, 9, 11, 5, 0), { outputTokens: 1_000_000 })), true)
+  assert.equal(ledger.report('2026-09-11', CNY).total.calls, 4)
 }
 
 {
@@ -272,4 +306,4 @@ function makeSources({ stored = [], live = [], failRead = [], listError = null }
   assert.match(report.errors[0], /sessionQuery/)
 }
 
-console.log('dsh-liangwen-tide: usage 自检 46 项通过')
+console.log('dsh-liangwen-tide: usage 自检 58 项通过')

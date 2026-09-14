@@ -348,4 +348,27 @@ async function settleUsage(route, { tries = 80 } = {}) {
   console.log('  7) 换挡弹窗资源：白名单 + 字节一致 + 404/405/HEAD + 可关闭 ✓')
 }
 
-console.log('dsh-liangwen-tide: host 自检 51 项通过')
+// ── 8. live 事件的模型兜底（插件是会话中途才加载的情况）───────────────────
+
+{
+  const { ctx, routeAt, emit } = makeCtx()
+  apply(ctx, { autoUpdate: false })
+  const usageRoute = routeAt(USAGE_ROUTE)
+  // 等第一次补历史收敛（没有 sessionQuery → unavailable）
+  await new Promise((resolve) => setTimeout(resolve, 30))
+
+  // 会话自己的路由快照里有模型；事件流里**没有** request/context
+  const session = { id: 'session-live', requestContext: () => ({ provider: 'deepseek', model: 'deepseek-v4-flash' }) }
+  emit('session/event', session, {
+    type: 'assistant/message', seq: 7, time: Date.now(),
+    data: { turn: 1, step: 1, usage: { inputTokens: 1_000_000, outputTokens: 100_000 } },
+  })
+  const payload = callRoute(usageRoute, { url: USAGE_ROUTE }).json()
+  assert.equal(payload.total.calls, 1)
+  assert.equal(payload.unpriced.calls, 0, '有兜底模型就不该记成"未匹配价格"（这就是用户看到的"模型获取失败"）')
+  assert.equal(payload.models[0].model, 'deepseek-v4-flash')
+  assert.ok(payload.total.cost > 0, '应当算出金额')
+  console.log('  8) live 兜底模型：会话中途加载也能定价（不再未匹配）✓')
+}
+
+console.log('dsh-liangwen-tide: host 自检 57 项通过')
