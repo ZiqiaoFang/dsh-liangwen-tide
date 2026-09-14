@@ -321,10 +321,11 @@ const boundary = UTC(11, 10, 0) // 周五 10:00 UTC = 峰→谷
   assert.equal(typeof globalThis.window.__liangwenTide?.hide, 'function')
   assert.equal(typeof globalThis.window.__liangwenTide?.state, 'function')
   assert.equal(keyHandlers.length, 1, '应注册一个快捷键监听')
-  // 快捷键连按两次也要交替
-  keyHandlers[0]({ key: 't', shiftKey: true, metaKey: true, preventDefault: () => {} })
+  // 新组合 Ctrl+Shift+Alt+T：连按两次也要交替
+  const newCombo = { key: 't', shiftKey: true, ctrlKey: true, altKey: true, metaKey: false, preventDefault: () => {} }
+  keyHandlers[0]({ ...newCombo })
   const viaKey1 = tide.currentCelebration().phase
-  keyHandlers[0]({ key: 't', shiftKey: true, metaKey: true, preventDefault: () => {} })
+  keyHandlers[0]({ ...newCombo })
   const viaKey2 = tide.currentCelebration().phase
   assert.notEqual(viaKey1, viaKey2, '快捷键连按两次必须换一张（峰↔谷交替）')
   window.__liangwenTide.hide()
@@ -350,15 +351,36 @@ const boundary = UTC(11, 10, 0) // 周五 10:00 UTC = 峰→谷
   tide.previewCelebration('peak')
   assert.equal(tide.previewCelebration(), 'valley', '显式指定 peak 之后，下一次应交替到 valley')
 
-  // 快捷键：Ctrl/Cmd + Shift + T
+  // 快捷键：Ctrl+Shift+Alt+T（Windows/Linux）/ ⌘+Shift+Option+T（macOS）
   window.__liangwenTide.hide()
   let prevented = 0
-  keyHandlers[0]({ key: 't', shiftKey: true, metaKey: true, preventDefault: () => { prevented += 1 } })
+  const comboForDefault = { key: 't', shiftKey: true, ctrlKey: true, altKey: true, metaKey: false, preventDefault: () => { prevented += 1 } }
+  keyHandlers[0]({ ...comboForDefault })
   assert.equal(prevented, 1, '快捷键要拦下浏览器默认行为')
   assert.equal(tide.currentCelebration().preview, true, '快捷键触发的是预览')
   window.__liangwenTide.hide()
-  keyHandlers[0]({ key: 't', shiftKey: false, metaKey: false, preventDefault: () => { prevented += 1 } })
+  keyHandlers[0]({ key: 't', shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, preventDefault: () => { prevented += 1 } })
   assert.equal(tide.currentCelebration(), null, '没按修饰键时不该弹')
+  window.__liangwenTide.hide()
+
+  // 旧组合 Ctrl/Cmd+Shift+T 必须让给浏览器（「重新打开刚关闭的标签页」），不再触发预览
+  let oldPrevented = 0
+  keyHandlers[0]({ key: 't', shiftKey: true, ctrlKey: true, altKey: false, metaKey: false, preventDefault: () => { oldPrevented += 1 } })
+  assert.equal(tide.currentCelebration(), null, '旧的 Ctrl+Shift+T 不该再弹预览')
+  assert.equal(oldPrevented, 0, '旧的 Ctrl+Shift+T 不该被拦下（要留给浏览器）')
+  keyHandlers[0]({ key: 't', shiftKey: true, altKey: false, ctrlKey: false, metaKey: true, preventDefault: () => { oldPrevented += 1 } })
+  assert.equal(tide.currentCelebration(), null, '旧的 ⌘+Shift+T 不该再弹预览')
+  assert.equal(oldPrevented, 0, '旧的 ⌘+Shift+T 不该被拦下')
+
+  // 长按（repeat）不连发
+  window.__liangwenTide.hide()
+  keyHandlers[0]({ ...comboForDefault, repeat: true })
+  assert.equal(tide.currentCelebration(), null, 'repeat 事件不该触发预览')
+
+  // 在输入框里打字时不抢快捷键
+  window.__liangwenTide.hide()
+  keyHandlers[0]({ ...comboForDefault, target: { tagName: 'INPUT' } })
+  assert.equal(tide.currentCelebration(), null, '焦点在输入框时不该触发预览')
   window.__liangwenTide.hide()
 }
 
@@ -388,4 +410,4 @@ const boundary = UTC(11, 10, 0) // 周五 10:00 UTC = 峰→谷
   window.__liangwenTide.hide()
 }
 
-console.log('dsh-liangwen-tide: popup 自检 77 项通过（定位/显示/颜色/自动关闭/触发/内容/资源/样式/预览钩子）')
+console.log('dsh-liangwen-tide: popup 自检 82 项通过（定位/显示/颜色/自动关闭/触发/内容/资源/样式/预览钩子/快捷键）')
