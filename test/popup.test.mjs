@@ -262,6 +262,13 @@ const boundary = UTC(11, 10, 0) // 周五 10:00 UTC = 峰→谷
   assert.equal(typeof globalThis.window.__liangwenTide?.hide, 'function')
   assert.equal(typeof globalThis.window.__liangwenTide?.state, 'function')
   assert.equal(keyHandlers.length, 1, '应注册一个快捷键监听')
+  // 快捷键连按两次也要交替
+  keyHandlers[0]({ key: 't', shiftKey: true, metaKey: true, preventDefault: () => {} })
+  const viaKey1 = tide.currentCelebration().phase
+  keyHandlers[0]({ key: 't', shiftKey: true, metaKey: true, preventDefault: () => {} })
+  const viaKey2 = tide.currentCelebration().phase
+  assert.notEqual(viaKey1, viaKey2, '快捷键连按两次必须换一张（峰↔谷交替）')
+  window.__liangwenTide.hide()
 
   // 指定档位
   assert.equal(tide.previewCelebration('peak'), 'peak')
@@ -270,11 +277,19 @@ const boundary = UTC(11, 10, 0) // 周五 10:00 UTC = 峰→谷
   tide.previewCelebration('valley')
   assert.equal(tide.currentCelebration().phase, 'valley')
 
-  // 不指定档位 → 取当前真实档位的相反值（连着按就是峰/谷交替）
+  // 不指定档位 → 在"上次预览过的档位"之间交替（真实档位是固定基准会一直弹同一张）
   window.__liangwenTide.hide()
   const real = tide.phaseAt(Date.now())
-  const flipped = tide.previewCelebration()
-  assert.equal(flipped, real === 'peak' ? 'valley' : 'peak', '不指定时应弹"相反档"')
+  const first = tide.previewCelebration()
+  assert.equal(first, real === 'peak' ? 'valley' : 'peak', '第一次应是真实档位的相反档')
+  const second = tide.previewCelebration()
+  const third = tide.previewCelebration()
+  assert.equal(second, real, '第二次应弹回真实档位那一张')
+  assert.equal(third, first, '第三次再翻回去')
+  assert.notEqual(second, first, '连按两次必须看到不同的两张（这是"只能看到一次切换"的 bug）')
+  // 显式指定过档位后，交替基准随之更新
+  tide.previewCelebration('peak')
+  assert.equal(tide.previewCelebration(), 'valley', '显式指定 peak 之后，下一次应交替到 valley')
 
   // 快捷键：Ctrl/Cmd + Shift + T
   window.__liangwenTide.hide()

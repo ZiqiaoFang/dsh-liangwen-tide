@@ -144,12 +144,17 @@ dsh plugin --profile web add link:./dsh-liangwen-tide    # 相对路径按「你
 | 光芒 | 三层纯 CSS：柔光球（呼吸）+ 双层反向旋转光芒 + 入场闪光环；颜色跟档位走（谷=青绿、峰=琥珀）。强度由 `--lwt-glow` 控制 |
 | 交互 | 悬停暂停倒计时；点人像或 ✕ 立即关；人像周围透明区不挡点击；`prefers-reduced-motion` 时不播动画 |
 | 图片尺寸 | 人像高 170px（"小"），光芒"中" —— 按你确认的方案 |
-| 当场演示 | 不用等真换挡：**⌘/Ctrl + Shift + T** 在峰/谷之间交替弹一次；控制台 `__liangwenTide.preview('peak')`、`__liangwenTide.hide()`、`__liangwenTide.state()`（state 里带锚点/定位诊断） |
+| 当场演示 | 不用等真换挡：**⌘/Ctrl + Shift + T** 连按即可在峰↔谷之间**交替**弹出（第 1 下弹"当前档位的相反档"，之后每按一下翻一面）；控制台 `__liangwenTide.preview('peak'\|'valley')`、`.hide()`、`.state()`（state 带锚点/定位诊断）。胶囊的悬停提示里也写了这个快捷键 |
 | 关掉 | `config.celebrate: false`（宿主半连资源路由都不注册） |
 
 > 图一/图二是你提供的两张图抠出来的（抠像工具与管线在 demo 目录）。
 > demo 里还留了插画/线稿/漫画三种风格化方案可选，但**按你的决定默认用原图**；
 > 若日后要彻底规避版权，把 `lib/assets/` 换成原创形象即可，代码不用动。
+
+### 改了代码什么时候生效
+
+- **只改浏览器半（`lib/client.js`）**：`dsh-client-hmr` 会热重建 bundle，**刷新页面即可**，不用重启（实测：实例启动后再改代码，运行中的服务端就已经下发新 bundle）。
+- **改了宿主半（`lib/index.js` 等）**：宿主半在 `dsh web` 启动时装载，得**重启一次**。
 
 ## 给别人用
 
