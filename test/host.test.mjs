@@ -13,6 +13,7 @@
 
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
+import { readFileSync } from 'node:fs'
 import { apply, POLICY_ROUTE, USAGE_ROUTE } from '../lib/index.js'
 import { BUILTIN_POLICY, phaseAt, samePolicy } from '../lib/policy.js'
 import { BUILTIN_PRICES, priceCall } from '../lib/pricing.js'
@@ -98,6 +99,7 @@ function callRoute(route, { method = 'GET', url = POLICY_ROUTE } = {}) {
   return {
     status: res.statusCode,
     headers: res.headers,
+    body: res.body, // 二进制资源（人像 webp）也要能断言
     json: () => JSON.parse(res.body === '' ? 'null' : res.body),
   }
 }
@@ -313,4 +315,37 @@ async function settleUsage(route, { tries = 80 } = {}) {
   console.log('  6) 降级路径：无 sessionQuery 只算实时；trackUsage:false 明说没开 ✓')
 }
 
-console.log('dsh-liangwen-tide: host 自检 40 项通过')
+// ── 7. 换挡弹窗的人像资源路由 ─────────────────────────────────────────────
+
+{
+  const { ctx, routeAt } = makeCtx()
+  apply(ctx, { autoUpdate: false })
+  const route = routeAt('/liangwen-tide/asset')
+  assert.ok(route !== undefined, '应注册人像资源路由')
+  assert.equal(route.kind, 'prefix')
+
+  const ok = callRoute(route, { url: '/liangwen-tide/asset/valley' })
+  assert.equal(ok.status, 200)
+  assert.equal(ok.headers['content-type'], 'image/webp')
+  assert.equal(ok.headers['cache-control'], 'public, max-age=86400')
+  const packed = readFileSync(new URL('../lib/assets/tide-valley.webp', import.meta.url))
+  assert.equal(ok.body.length, packed.byteLength, '下发的字节数应与包内文件一致')
+  assert.ok(Buffer.compare(Buffer.from(ok.body), packed) === 0, '下发的应该就是包里那张抠像')
+  assert.ok(packed.byteLength > 10_000, '人像资源应是几十 KB 的 webp')
+
+  assert.equal(callRoute(route, { url: '/liangwen-tide/asset/peak' }).status, 200)
+  assert.equal(callRoute(route, { url: '/liangwen-tide/asset/nope' }).status, 404, '白名单之外要 404')
+  assert.equal(callRoute(route, { url: '/liangwen-tide/asset/../../package.json' }).status, 404, '目录穿越要 404')
+  assert.equal(callRoute(route, { method: 'POST', url: '/liangwen-tide/asset/valley' }).status, 405)
+  const head = callRoute(route, { method: 'HEAD', url: '/liangwen-tide/asset/peak' })
+  assert.equal(head.status, 200)
+  assert.equal(head.body, '', 'HEAD 不带 body')
+
+  // celebrate:false 时整条路由都不该注册
+  const off = makeCtx()
+  apply(off.ctx, { autoUpdate: false, celebrate: false })
+  assert.equal(off.routeAt('/liangwen-tide/asset'), undefined, 'celebrate:false 不该注册资源路由')
+  console.log('  7) 换挡弹窗资源：白名单 + 字节一致 + 404/405/HEAD + 可关闭 ✓')
+}
+
+console.log('dsh-liangwen-tide: host 自检 51 项通过')

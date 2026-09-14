@@ -11,3 +11,9 @@ node_modules/
 # 系统与编辑器
 .DS_Store
 *.swp
+
+# 附件/原图的误入防护：这些不该进仓库（版权敏感），只允许 lib/assets 下的抠像
+/*.jpg
+/*.jpeg
+/*.webp
+/*.png

@@ -155,13 +155,14 @@ bundle.apply({ get: () => undefined }) // slots 缺席时只告警，不抛
 
 assert.deepEqual(
   registered.map((entry) => entry.options.name),
-  ['conversation.session.header.utilities', 'sidebar.footer.action'],
-  '两个插槽贡献都要注册',
+  ['conversation.session.header.utilities', 'sidebar.footer.action', 'shell.overlay'],
+  '两个 list 插槽 + 换挡弹窗的悬浮层都要注册',
 )
-assert.deepEqual(injected, ['conversation.session.header.utilities', 'sidebar.footer.action'])
+assert.deepEqual(injected, ['conversation.session.header.utilities', 'sidebar.footer.action', 'shell.overlay'])
 for (const entry of registered) {
-  assert.equal(entry.options.id, 'liangwen-tide')
-  assert.equal(entry.options.order, 5)
+  // 前两个是 list 插槽（order 5），第三个是悬浮层里的换挡弹窗
+  assert.ok(entry.options.id === 'liangwen-tide' || entry.options.id === 'liangwen-tide-celebration')
+  assert.ok(entry.options.order === 5 || entry.options.order === 20)
   assert.equal(typeof entry.component, 'function')
 }
 
