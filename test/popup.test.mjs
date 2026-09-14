@@ -20,10 +20,12 @@ const prefetched = []
 let clock = UTC(11, 15, 0)
 Date.now = () => clock
 
+const keyHandlers = []
 globalThis.window = {
   __ModuleLoader__: { load: (value) => { registration = value } },
   setInterval: () => 1,
   setTimeout: () => 1,
+  addEventListener: (type, handler) => { if (type === 'keydown') keyHandlers.push(handler) },
   innerWidth: 1280,
   innerHeight: 800,
 }
@@ -196,7 +198,120 @@ const boundary = UTC(11, 10, 0) // 周五 10:00 UTC = 峰→谷
   assert.ok(/\.lwt-burst \{[^}]*z-index: 0/.test(css), '光芒层必须在人像后面')
   assert.ok(/\.lwt-figure \{[^}]*z-index: 1/.test(css), '人像要压在光芒之上')
   assert.ok(css.includes('prefers-reduced-motion'), '要照顾"减少动态效果"的系统设置')
+  assert.ok(!css.includes('data-dsh-theme'), '不能猜主题属性名（DSH 实际用的是 data-ds-dark-theme）')
+  assert.ok(/--dsw-alias-bg-layer-2/.test(css), '说明条底色要来自主题变量（自动跟随亮/暗）')
+  assert.ok(/color-mix\(in srgb/.test(css), '要有玻璃感的半透明底色')
   assert.ok(css.includes('mask-image: linear-gradient(to bottom'), '光芒底部要跟着人像淡出')
 }
 
-console.log('dsh-liangwen-tide: popup 自检 34 项通过（定位/触发/内容/资源/样式）')
+// ── 5. applyPlacement：量完尺寸后必须把弹窗"变可见"（曾经忘了，永远 hidden）──
+
+{
+  const makeBox = () => {
+    const classes = new Set()
+    return {
+      offsetWidth: 176,
+      offsetHeight: 250,
+      style: {},
+      classList: { add: (name) => classes.add(name), remove: (name) => classes.delete(name), has: (name) => classes.has(name) },
+      _classes: classes,
+    }
+  }
+  const anchor = { top: 48, bottom: 76, left: 1180, right: 1264, width: 84, height: 28 }
+  const layer = { left: 0, top: 0 }
+
+  const box = makeBox()
+  const placement = tide.applyPlacement(box, anchor, layer, { width: 1280, height: 800 })
+  assert.equal(placement.dir, 'down')
+  assert.equal(box.style.visibility, 'visible', '量完尺寸必须把弹窗显示出来（这是实际插件上看不到弹窗的根因）')
+  assert.ok(box.classList.has('lwt-show'), '要加上入场动画的 class')
+  assert.equal(box.style.left, `${anchor.right - 176}px`, '与胶囊右对齐')
+  assert.equal(box.style.top, `${anchor.bottom + tide.CELEBRATION.gap}px`, '贴在胶囊下方')
+
+  // 悬浮层有偏移时，坐标要按层原点折算
+  const shifted = makeBox()
+  tide.applyPlacement(shifted, anchor, { left: 40, top: 12 }, { width: 1280, height: 800 })
+  assert.equal(shifted.style.left, `${anchor.right - 176 - 40}px`)
+  assert.equal(shifted.style.top, `${anchor.bottom + tide.CELEBRATION.gap - 12}px`)
+
+  // 没锚点（连侧栏胶囊都没渲染）→ 不定位、不显示
+  const orphan = makeBox()
+  assert.equal(tide.applyPlacement(orphan, null, layer, { width: 1280, height: 800 }), null)
+  assert.equal(orphan.style.visibility, undefined, '没有锚点就不该显示')
+}
+
+// ── 6. 颜色：主题变量是 var(...)，rgba() 必须能处理，绝不能拼出 NaN ────────
+
+{
+  assert.equal(tide.rgba('#22c55e', 0.5), 'rgba(34, 197, 94, 0.5)', 'hex 要能拆')
+  assert.equal(tide.rgba('#0f0', 0.4), 'rgba(0, 255, 0, 0.4)', '三位 hex 也要能拆')
+  assert.equal(tide.rgba('rgb(34, 197, 94)', 0.5), 'rgba(34, 197, 94, 0.5)', 'rgb() 要能拆')
+  const unresolved = tide.rgba('var(--dsw-alias-state-success-primary)', 0.5)
+  assert.ok(!/NaN/.test(unresolved), `不能拼出 NaN（实际 ${unresolved}）`)
+  assert.equal(unresolved, 'var(--dsw-alias-state-success-primary)', '认不出来就原样返回')
+  // themeColor 在测试环境没有真实主题变量 → 退回兜底色，也是具体色值
+  assert.ok(/^#|^rgb/.test(tide.themeColor(true)), '峰时色要落到具体色值')
+  assert.ok(/^#|^rgb/.test(tide.themeColor(false)), '谷时色要落到具体色值')
+  assert.ok(!/NaN/.test(tide.rgba(tide.themeColor(false), 0.4)), '组合起来也不能出 NaN')
+}
+
+// ── 7. 手动预览钩子（等真换挡太久的演示入口）──────────────────────────────
+
+{
+  assert.equal(typeof globalThis.window.__liangwenTide?.preview, 'function', '控制台应能拿到 __liangwenTide.preview')
+  assert.equal(typeof globalThis.window.__liangwenTide?.hide, 'function')
+  assert.equal(typeof globalThis.window.__liangwenTide?.state, 'function')
+  assert.equal(keyHandlers.length, 1, '应注册一个快捷键监听')
+
+  // 指定档位
+  assert.equal(tide.previewCelebration('peak'), 'peak')
+  assert.equal(tide.currentCelebration().phase, 'peak')
+  assert.equal(tide.currentCelebration().preview, true, '预览要标记出来（说明条写"手动预览"）')
+  tide.previewCelebration('valley')
+  assert.equal(tide.currentCelebration().phase, 'valley')
+
+  // 不指定档位 → 取当前真实档位的相反值（连着按就是峰/谷交替）
+  window.__liangwenTide.hide()
+  const real = tide.phaseAt(Date.now())
+  const flipped = tide.previewCelebration()
+  assert.equal(flipped, real === 'peak' ? 'valley' : 'peak', '不指定时应弹"相反档"')
+
+  // 快捷键：Ctrl/Cmd + Shift + T
+  window.__liangwenTide.hide()
+  let prevented = 0
+  keyHandlers[0]({ key: 't', shiftKey: true, metaKey: true, preventDefault: () => { prevented += 1 } })
+  assert.equal(prevented, 1, '快捷键要拦下浏览器默认行为')
+  assert.equal(tide.currentCelebration().preview, true, '快捷键触发的是预览')
+  window.__liangwenTide.hide()
+  keyHandlers[0]({ key: 't', shiftKey: false, metaKey: false, preventDefault: () => { prevented += 1 } })
+  assert.equal(tide.currentCelebration(), null, '没按修饰键时不该弹')
+  window.__liangwenTide.hide()
+}
+
+{
+  // 预览的说明条文案
+  tide.previewCelebration('peak')
+  const Celebration = registered.find((entry) => entry.options.name === 'shell.overlay').component
+  const texts = []
+  const walk = (node) => {
+    if (typeof node === 'string') { texts.push(node); return }
+    if (node === null || typeof node !== 'object') return
+    for (const child of node.children ?? []) walk(child)
+  }
+  walk(Celebration())
+  assert.ok(texts.some((t) => t.includes('手动预览')), '预览文案要写"手动预览"')
+  window.__liangwenTide.hide()
+  // 真实换挡的文案写边界时刻
+  tide.fireCelebration('valley', UTC(11, 10, 0))
+  const realTexts = []
+  const walkReal = (node) => {
+    if (typeof node === 'string') { realTexts.push(node); return }
+    if (node === null || typeof node !== 'object') return
+    for (const child of node.children ?? []) walkReal(child)
+  }
+  walkReal(Celebration())
+  assert.ok(realTexts.some((t) => t.includes('北京时间') && t.includes('18:00')), '真实换挡要写边界时刻（北京 18:00）')
+  window.__liangwenTide.hide()
+}
+
+console.log('dsh-liangwen-tide: popup 自检 64 项通过（定位/显示/颜色/触发/内容/资源/样式/预览钩子）')

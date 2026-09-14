@@ -144,6 +144,7 @@ dsh plugin --profile web add link:./dsh-liangwen-tide    # 相对路径按「你
 | 光芒 | 三层纯 CSS：柔光球（呼吸）+ 双层反向旋转光芒 + 入场闪光环；颜色跟档位走（谷=青绿、峰=琥珀）。强度由 `--lwt-glow` 控制 |
 | 交互 | 悬停暂停倒计时；点人像或 ✕ 立即关；人像周围透明区不挡点击；`prefers-reduced-motion` 时不播动画 |
 | 图片尺寸 | 人像高 170px（"小"），光芒"中" —— 按你确认的方案 |
+| 当场演示 | 不用等真换挡：**⌘/Ctrl + Shift + T** 在峰/谷之间交替弹一次；控制台 `__liangwenTide.preview('peak')`、`__liangwenTide.hide()`、`__liangwenTide.state()`（state 里带锚点/定位诊断） |
 | 关掉 | `config.celebrate: false`（宿主半连资源路由都不注册） |
 
 > 图一/图二是你提供的两张图抠出来的（抠像工具与管线在 demo 目录）。
