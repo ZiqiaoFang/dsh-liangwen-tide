@@ -13,6 +13,12 @@ import { BUILTIN_POLICY as hostBuiltin, samePolicy } from '../lib/policy.js'
 // ── 假的浏览器外壳：接住 window.__ModuleLoader__.load 的注册 ────────────────
 
 let registration
+// 浏览器 API 桩：插件在弹窗倒计时里用 requestAnimationFrame，
+// 测试里必须钉住它 —— 否则会退化到真实 setTimeout，模拟时钟让 delta 恒为 0，
+// 变成永不停止的定时器链，进程直接不退出（踩过一次）。
+globalThis.requestAnimationFrame = () => 0
+globalThis.cancelAnimationFrame = () => {}
+
 globalThis.window = {
   __ModuleLoader__: {
     load(value) {

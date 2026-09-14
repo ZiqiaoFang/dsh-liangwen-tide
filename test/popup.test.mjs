@@ -21,6 +21,11 @@ let clock = UTC(11, 15, 0)
 Date.now = () => clock
 
 const keyHandlers = []
+// 待执行帧：用 Map 才能让 cancelAnimationFrame 真的摘掉挂起的回调（否则数不准"有没有叠加循环"）
+const frames = new Map()
+let nextFrameId = 0
+globalThis.requestAnimationFrame = (fn) => { nextFrameId += 1; frames.set(nextFrameId, fn); return nextFrameId }
+globalThis.cancelAnimationFrame = (id) => { frames.delete(id) }
 globalThis.window = {
   __ModuleLoader__: { load: (value) => { registration = value } },
   setInterval: () => 1,
@@ -255,7 +260,61 @@ const boundary = UTC(11, 10, 0) // 周五 10:00 UTC = 峰→谷
   assert.ok(!/NaN/.test(tide.rgba(tide.themeColor(false), 0.4)), '组合起来也不能出 NaN')
 }
 
-// ── 7. 手动预览钩子（等真换挡太久的演示入口）──────────────────────────────
+// ── 7. 自动关闭：预览和真实触发都要 6 秒后自己收起来（悬停暂停）───────────
+
+{
+  const step = (ms) => {
+    const entry = [...frames.entries()][0]
+    if (entry === undefined) return false
+    frames.delete(entry[0])
+    entry[1](ms)
+    return true
+  }
+
+  // 真实触发
+  frames.clear()
+  tide.fireCelebration('peak', UTC(11, 10, 0))
+  assert.equal(tide.CELEBRATION.seconds, 6, '默认停留 6 秒')
+  assert.equal(tide.currentCelebration().hideAt, 6000, '触发时开始倒计时')
+  assert.ok(frames.size > 0, '触发时要起一帧倒计时循环')
+  let now = 1000
+  step(now)                       // 第 1 帧只记基准，不扣时间
+  for (let i = 0; i < 40 && tide.currentCelebration() !== null; i += 1) {
+    now += 250
+    step(now)
+  }
+  assert.equal(tide.currentCelebration(), null, '6 秒后要自动关闭（之前根本没接定时器）')
+
+  // 悬停暂停
+  frames.clear()
+  tide.fireCelebration('valley', UTC(11, 10, 0))
+  now = 5000
+  step(now)
+  tide.currentCelebration().hovering = true
+  for (let i = 0; i < 40; i += 1) { now += 250; step(now) }
+  assert.ok(tide.currentCelebration() !== null, '悬停时不该自动关闭')
+  assert.equal(tide.currentCelebration().hideAt, 6000, '悬停期间倒计时不动')
+  tide.currentCelebration().hovering = false
+  for (let i = 0; i < 40 && tide.currentCelebration() !== null; i += 1) { now += 250; step(now) }
+  assert.equal(tide.currentCelebration(), null, '移开鼠标后继续倒计时并关闭')
+
+  // 预览同样会关
+  frames.clear()
+  tide.previewCelebration('peak')
+  now = 9000
+  step(now)
+  for (let i = 0; i < 40 && tide.currentCelebration() !== null; i += 1) { now += 250; step(now) }
+  assert.equal(tide.currentCelebration(), null, '预览也要自动关闭（这是这次报的问题）')
+
+  // 连续触发不会叠加多个循环
+  frames.clear()
+  tide.fireCelebration('peak', UTC(11, 10, 0))
+  tide.fireCelebration('valley', UTC(11, 10, 0))
+  assert.equal(frames.size, 1, '再次触发应替换旧循环，只留一个（不能叠加）')
+  tide.hideCelebration()
+}
+
+// ── 8. 手动预览钩子（等真换挡太久的演示入口）──────────────────────────────
 
 {
   assert.equal(typeof globalThis.window.__liangwenTide?.preview, 'function', '控制台应能拿到 __liangwenTide.preview')
@@ -329,4 +388,4 @@ const boundary = UTC(11, 10, 0) // 周五 10:00 UTC = 峰→谷
   window.__liangwenTide.hide()
 }
 
-console.log('dsh-liangwen-tide: popup 自检 64 项通过（定位/显示/颜色/触发/内容/资源/样式/预览钩子）')
+console.log('dsh-liangwen-tide: popup 自检 77 项通过（定位/显示/颜色/自动关闭/触发/内容/资源/样式/预览钩子）')
