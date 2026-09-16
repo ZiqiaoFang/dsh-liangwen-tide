@@ -1,6 +1,6 @@
 {
   "name": "dsh-liangwen-tide",
-  "version": "1.3.1",
+  "version": "1.3.1.1",
   "description": "DeepSeek API 峰谷指示器 + 当日已用金额：峰时显示「梁文峰」，谷时显示「梁文谷」，策略与价目表自动跟随官方定价页。A peak/off-peak tide + today-cost indicator for the DeepSeek Harness Web GUI.",
   "author": "ZF",
   "type": "module",
@@ -70,7 +70,9 @@
         "ui:conversation.session.header.utilities",
         "ui:sidebar.footer.action",
         "http:/liangwen-tide/policy",
-        "http:/liangwen-tide/usage"
+        "http:/liangwen-tide/usage",
+        "ui:shell.overlay",
+        "http:/liangwen-tide/asset"
       ],
       "reads": [
         "session:events",
