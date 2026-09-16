@@ -5,9 +5,10 @@
  */
 import { createRequire } from 'node:module'
 import Module from 'node:module'
+import { join, resolve } from 'node:path'
 
 const require = createRequire(import.meta.url)
-const PLUGIN = process.argv[2]
+const PLUGIN = resolve(process.argv[2] ?? '.')
 if (!PLUGIN) { console.error('用法: node titlecheck.mjs <插件目录>'); process.exit(2) }
 
 let fakeNow = Date.now()
@@ -42,7 +43,7 @@ Module._load = function (request, ...rest) {
   if (request === 'react') return React
   return origLoad.call(this, request, ...rest)
 }
-require(`${PLUGIN}\\lib\\client.js`)
+require(join(PLUGIN, 'lib', 'client.js'))
 const client = bundles['dsh-liangwen-tide']
 const I = client.__internal
 const slots = { inject: (_s, fn) => fn(), register: (m, c) => { registered[m.name] = c; return () => {} } }
